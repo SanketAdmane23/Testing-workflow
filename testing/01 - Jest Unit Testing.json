@@ -3,78 +3,138 @@
   "nodes": [
     {
       "parameters": {},
-      "id": "trigger-1",
+      "id": "b538a091-1ac4-4e6b-b2ea-1c6b0d3f7324",
       "name": "Manual Trigger",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [200, 300]
+      "position": [
+        -720,
+        112
+      ]
     },
     {
       "parameters": {
         "jsCode": "// ─────────────────────────────────────────────\n// STEP 1: The actual function we want to test\n// ─────────────────────────────────────────────\nfunction add(a, b) { return a + b; }\nfunction subtract(a, b) { return a - b; }\nfunction multiply(a, b) { return a * b; }\nfunction divide(a, b) {\n  if (b === 0) throw new Error('Division by zero');\n  return a / b;\n}\n\n// ─────────────────────────────────────────────\n// STEP 2: Mini test runner (no external libs)\n// ─────────────────────────────────────────────\nconst results = [];\n\nfunction test(name, fn) {\n  try {\n    fn();\n    results.push({ test: name, status: 'PASS', error: null });\n  } catch (e) {\n    results.push({ test: name, status: 'FAIL', error: e.message });\n  }\n}\n\nfunction expect(actual) {\n  return {\n    toBe(expected) {\n      if (actual !== expected)\n        throw new Error(`Expected ${expected} but got ${actual}`);\n    },\n    toThrow(msg) {\n      throw new Error(`toThrow must wrap a function call`);\n    }\n  };\n}\n\nfunction expectThrow(fn, expectedMsg) {\n  try {\n    fn();\n    throw new Error(`Expected an error but none was thrown`);\n  } catch (e) {\n    if (!e.message.includes(expectedMsg))\n      throw new Error(`Expected error '${expectedMsg}' but got '${e.message}'`);\n  }\n}\n\n// ─────────────────────────────────────────────\n// STEP 3: Write your tests\n// ─────────────────────────────────────────────\ntest('add: 2 + 3 = 5',       () => expect(add(2, 3)).toBe(5));\ntest('add: negative nums',    () => expect(add(-1, -2)).toBe(-3));\ntest('subtract: 10 - 4 = 6', () => expect(subtract(10, 4)).toBe(6));\ntest('multiply: 3 * 4 = 12', () => expect(multiply(3, 4)).toBe(12));\ntest('divide: 10 / 2 = 5',   () => expect(divide(10, 2)).toBe(5));\ntest('divide: by zero throws', () => expectThrow(() => divide(5, 0), 'Division by zero'));\n\n// ─────────────────────────────────────────────\n// STEP 4: Summarise\n// ─────────────────────────────────────────────\nconst passed = results.filter(r => r.status === 'PASS').length;\nconst failed = results.filter(r => r.status === 'FAIL').length;\n\nreturn results.map(r => ({ json: { ...r, summary: `${passed} passed, ${failed} failed` } }));"
       },
-      "id": "code-jest-1",
+      "id": "fb1d945f-8f71-4b30-941a-98a21d523374",
       "name": "Run Unit Tests",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [440, 300]
+      "position": [
+        -480,
+        112
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true },
+          "options": {
+            "caseSensitive": true
+          },
           "conditions": [
             {
               "id": "cond-1",
               "leftValue": "={{ $json.status }}",
               "rightValue": "FAIL",
-              "operator": { "type": "string", "operation": "equals" }
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             }
           ],
           "combinator": "and"
-        }
+        },
+        "options": {}
       },
-      "id": "if-1",
+      "id": "d7d2c0e4-5e60-4101-a06a-ec30d8301b28",
       "name": "Any Failures?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [680, 300]
+      "position": [
+        -240,
+        112
+      ]
     },
     {
       "parameters": {
         "jsCode": "const items = $input.all();\nconst failed = items.map(i => i.json);\nreturn [{ json: { alert: '❌ TESTS FAILED', failures: failed } }];"
       },
-      "id": "code-fail",
+      "id": "58a753ac-cacf-4b1a-befc-2da6dffd16d2",
       "name": "Report Failures",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [920, 200]
+      "position": [
+        0,
+        0
+      ]
     },
     {
       "parameters": {
         "jsCode": "const items = $input.all();\nreturn [{ json: { alert: '✅ ALL TESTS PASSED', count: items.length } }];"
       },
-      "id": "code-pass",
+      "id": "9dc31f0e-9c2e-401c-bf47-d8f553d51ea1",
       "name": "Report Success",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [920, 420]
+      "position": [
+        0,
+        224
+      ]
     }
   ],
+  "pinData": {},
   "connections": {
     "Manual Trigger": {
-      "main": [[{ "node": "Run Unit Tests", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Run Unit Tests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Run Unit Tests": {
-      "main": [[{ "node": "Any Failures?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Any Failures?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Any Failures?": {
       "main": [
-        [{ "node": "Report Failures", "type": "main", "index": 0 }],
-        [{ "node": "Report Success",  "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Report Failures",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Report Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
-  "settings": { "executionOrder": "v1" },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "1b0f52d4-9b2a-4bfb-9b6f-5f7919d9d88a",
+  "meta": {
+    "instanceId": "46f07ef4e9d965df6575a034e4053e5e806ccbc6190e58457714fc3fd982033e"
+  },
+  "id": "d7ktVSaFHWh82il5",
   "tags": []
 }

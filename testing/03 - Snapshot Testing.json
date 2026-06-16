@@ -1,0 +1,345 @@
+{
+  "name": "03 - Snapshot Testing",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "76d2a25c-b33f-4c6b-a4e2-520ea9fcc762",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -960,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─────────────────────────────────────────────\n// Simulate the output of a node you want to\n// snapshot-test (e.g. a transform/code node)\n// ─────────────────────────────────────────────\nfunction transformOrder(raw) {\n  return {\n    orderId:    raw.id,\n    customer:   raw.customer.toUpperCase(),\n    totalPrice: (raw.items.reduce((s, i) => s + i.price * i.qty, 0)).toFixed(2),\n    itemCount:  raw.items.length,\n    status:     raw.status === 'new' ? 'PENDING' : 'PROCESSED'\n  };\n}\n\nconst rawOrder = {\n  id: 'ORD-001',\n  customer: 'sanket',\n  status: 'new',\n  items: [\n    { name: 'Aalu', price: 10, qty: 3 },\n    { name: 'Tamatar', price: 5,  qty: 3 }\n  ]\n};\n\nconst output = transformOrder(rawOrder);\nreturn [{ json: { currentOutput: output } }];"
+      },
+      "id": "a4235331-d949-40ed-9032-6eff60dd5876",
+      "name": "Transform Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -720,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─────────────────────────────────────────────\n// SNAPSHOT: This is your saved known-good output\n// First run: copy currentOutput here as snapshot\n// Future runs: compare against it automatically\n// ─────────────────────────────────────────────\nconst SNAPSHOT = {\n  orderId:    'ORD-001',\n  customer:   'SANKET',\n  totalPrice: '35.00',\n  itemCount:  2,\n  status:     'PENDING'\n};\n\nconst current = $json.currentOutput;\n\n// Deep compare helper\nfunction deepEqual(a, b) {\n  if (typeof a !== typeof b) return false;\n  if (typeof a !== 'object') return a === b;\n  const ka = Object.keys(a), kb = Object.keys(b);\n  if (ka.length !== kb.length) return false;\n  return ka.every(k => deepEqual(a[k], b[k]));\n}\n\n// Find field-level diffs\nconst diffs = [];\nfor (const key of Object.keys(SNAPSHOT)) {\n  if (!deepEqual(SNAPSHOT[key], current[key])) {\n    diffs.push({\n      field:    key,\n      snapshot: SNAPSHOT[key],\n      current:  current[key]\n    });\n  }\n}\n\nconst passed = diffs.length === 0;\n\nreturn [{\n  json: {\n    snapshotTest: passed ? '✅ SNAPSHOT MATCH' : '❌ SNAPSHOT MISMATCH',\n    passed,\n    diffs,\n    tip: passed\n      ? 'Output matches saved snapshot.'\n      : 'Update SNAPSHOT const above if change is intentional.'\n  }\n}];"
+      },
+      "id": "214c7539-d3fa-4a8e-8fba-5284ab897e2e",
+      "name": "Compare Snapshot",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -480,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond-snap",
+              "leftValue": "={{ $json.passed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c99b41c2-7a6c-4e6d-9bdf-88dbc823a6aa",
+      "name": "Snapshot Passed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "snapshot_test_results",
+          "mode": "list",
+          "cachedResultName": "snapshot_test_results"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "passed": false,
+            "snapshot_test": "={{ $json.snapshotTest }}",
+            "tip": "={{ $json.tip }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "snapshot_test",
+              "displayName": "snapshot_test",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "passed",
+              "displayName": "passed",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "diffs",
+              "displayName": "diffs",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "tip",
+              "displayName": "tip",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "executed_at",
+              "displayName": "executed_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        16,
+        16
+      ],
+      "id": "e0e4149d-15b2-4e06-a596-525b6445764c",
+      "name": "Insert rows in a table",
+      "credentials": {
+        "postgres": {
+          "id": "nN1KV8qOhUQyaYqO",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "snapshot_test_results",
+          "mode": "list",
+          "cachedResultName": "snapshot_test_results"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "passed": false,
+            "snapshot_test": "={{ $json.snapshotTest }}",
+            "tip": "={{ $json.tip }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "snapshot_test",
+              "displayName": "snapshot_test",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "passed",
+              "displayName": "passed",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "diffs",
+              "displayName": "diffs",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "tip",
+              "displayName": "tip",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "executed_at",
+              "displayName": "executed_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        16,
+        208
+      ],
+      "id": "943d833f-773f-4cc2-817a-8067788c0864",
+      "name": "Insert rows in a table1",
+      "credentials": {
+        "postgres": {
+          "id": "nN1KV8qOhUQyaYqO",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Transform Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform Data": {
+      "main": [
+        [
+          {
+            "node": "Compare Snapshot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compare Snapshot": {
+      "main": [
+        [
+          {
+            "node": "Snapshot Passed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Snapshot Passed?": {
+      "main": [
+        [
+          {
+            "node": "Insert rows in a table",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insert rows in a table1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "d74be062-b074-4031-b4e6-4038843fdb59",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "46f07ef4e9d965df6575a034e4053e5e806ccbc6190e58457714fc3fd982033e"
+  },
+  "id": "RuMnvStnSZKpoZkz",
+  "tags": []
+}
