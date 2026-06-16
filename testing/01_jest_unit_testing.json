@@ -1,0 +1,80 @@
+{
+  "name": "01 - Jest Unit Testing",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger-1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─────────────────────────────────────────────\n// STEP 1: The actual function we want to test\n// ─────────────────────────────────────────────\nfunction add(a, b) { return a + b; }\nfunction subtract(a, b) { return a - b; }\nfunction multiply(a, b) { return a * b; }\nfunction divide(a, b) {\n  if (b === 0) throw new Error('Division by zero');\n  return a / b;\n}\n\n// ─────────────────────────────────────────────\n// STEP 2: Mini test runner (no external libs)\n// ─────────────────────────────────────────────\nconst results = [];\n\nfunction test(name, fn) {\n  try {\n    fn();\n    results.push({ test: name, status: 'PASS', error: null });\n  } catch (e) {\n    results.push({ test: name, status: 'FAIL', error: e.message });\n  }\n}\n\nfunction expect(actual) {\n  return {\n    toBe(expected) {\n      if (actual !== expected)\n        throw new Error(`Expected ${expected} but got ${actual}`);\n    },\n    toThrow(msg) {\n      throw new Error(`toThrow must wrap a function call`);\n    }\n  };\n}\n\nfunction expectThrow(fn, expectedMsg) {\n  try {\n    fn();\n    throw new Error(`Expected an error but none was thrown`);\n  } catch (e) {\n    if (!e.message.includes(expectedMsg))\n      throw new Error(`Expected error '${expectedMsg}' but got '${e.message}'`);\n  }\n}\n\n// ─────────────────────────────────────────────\n// STEP 3: Write your tests\n// ─────────────────────────────────────────────\ntest('add: 2 + 3 = 5',       () => expect(add(2, 3)).toBe(5));\ntest('add: negative nums',    () => expect(add(-1, -2)).toBe(-3));\ntest('subtract: 10 - 4 = 6', () => expect(subtract(10, 4)).toBe(6));\ntest('multiply: 3 * 4 = 12', () => expect(multiply(3, 4)).toBe(12));\ntest('divide: 10 / 2 = 5',   () => expect(divide(10, 2)).toBe(5));\ntest('divide: by zero throws', () => expectThrow(() => divide(5, 0), 'Division by zero'));\n\n// ─────────────────────────────────────────────\n// STEP 4: Summarise\n// ─────────────────────────────────────────────\nconst passed = results.filter(r => r.status === 'PASS').length;\nconst failed = results.filter(r => r.status === 'FAIL').length;\n\nreturn results.map(r => ({ json: { ...r, summary: `${passed} passed, ${failed} failed` } }));"
+      },
+      "id": "code-jest-1",
+      "name": "Run Unit Tests",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true },
+          "conditions": [
+            {
+              "id": "cond-1",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "FAIL",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-1",
+      "name": "Any Failures?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst failed = items.map(i => i.json);\nreturn [{ json: { alert: '❌ TESTS FAILED', failures: failed } }];"
+      },
+      "id": "code-fail",
+      "name": "Report Failures",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [920, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nreturn [{ json: { alert: '✅ ALL TESTS PASSED', count: items.length } }];"
+      },
+      "id": "code-pass",
+      "name": "Report Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [920, 420]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [[{ "node": "Run Unit Tests", "type": "main", "index": 0 }]]
+    },
+    "Run Unit Tests": {
+      "main": [[{ "node": "Any Failures?", "type": "main", "index": 0 }]]
+    },
+    "Any Failures?": {
+      "main": [
+        [{ "node": "Report Failures", "type": "main", "index": 0 }],
+        [{ "node": "Report Success",  "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": []
+}

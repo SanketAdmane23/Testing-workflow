@@ -1,0 +1,56 @@
+{
+  "name": "02 - Mocking HTTP Nodes",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger-2",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─────────────────────────────────────────────\n// MOCK: Simulate what an HTTP node would return\n// Replace this block with a real HTTP Request\n// node once you're ready to go live.\n// ─────────────────────────────────────────────\nconst USE_MOCK = true; // flip to false for live\n\nconst mockApiResponse = {\n  users: [\n    { id: 1, name: 'Alice',   role: 'admin',  active: true  },\n    { id: 2, name: 'Bob',     role: 'viewer', active: false },\n    { id: 3, name: 'Charlie', role: 'editor', active: true  }\n  ],\n  meta: { total: 3, page: 1 }\n};\n\nif (USE_MOCK) {\n  console.log('[MOCK] Returning fake API response');\n  return [{ json: { source: 'mock', data: mockApiResponse } }];\n}\n\n// When USE_MOCK = false, connect a real HTTP\n// Request node before this Code node instead."
+      },
+      "id": "mock-http",
+      "name": "Mock HTTP Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─────────────────────────────────────────────\n// Process the response — same logic works for\n// both mock and real HTTP data\n// ─────────────────────────────────────────────\nconst payload = $json.data;\nconst users   = payload.users;\n\nconst activeUsers = users.filter(u => u.active);\nconst admins      = users.filter(u => u.role === 'admin');\n\nreturn [{\n  json: {\n    totalUsers:   users.length,\n    activeUsers:  activeUsers.length,\n    adminCount:   admins.length,\n    activeNames:  activeUsers.map(u => u.name),\n    processedAt:  new Date().toISOString()\n  }\n}];"
+      },
+      "id": "process-data",
+      "name": "Process Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─────────────────────────────────────────────\n// Validate the shape of the processed data\n// This acts as your assertion layer\n// ─────────────────────────────────────────────\nconst d = $json;\nconst errors = [];\n\nif (typeof d.totalUsers !== 'number')  errors.push('totalUsers must be a number');\nif (!Array.isArray(d.activeNames))     errors.push('activeNames must be an array');\nif (d.activeUsers > d.totalUsers)      errors.push('activeUsers cannot exceed totalUsers');\nif (!d.processedAt)                    errors.push('processedAt timestamp missing');\n\nreturn [{\n  json: {\n    validationPassed: errors.length === 0,\n    errors,\n    data: d\n  }\n}];"
+      },
+      "id": "validate",
+      "name": "Validate Shape",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [920, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [[{ "node": "Mock HTTP Response", "type": "main", "index": 0 }]]
+    },
+    "Mock HTTP Response": {
+      "main": [[{ "node": "Process Response", "type": "main", "index": 0 }]]
+    },
+    "Process Response": {
+      "main": [[{ "node": "Validate Shape", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": []
+}
